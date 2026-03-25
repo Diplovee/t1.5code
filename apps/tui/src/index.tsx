@@ -69,6 +69,7 @@ if (process.env.T3CODE_HEADLESS === "1") {
 } else {
   let shuttingDown = false;
   let interruptRequestToken = 0;
+  let composerInputFocused = false;
   let quitPromptOpen = false;
   const paths = resolveTuiPaths();
   const prefs = await readPrefs(paths);
@@ -88,6 +89,9 @@ if (process.env.T3CODE_HEADLESS === "1") {
       <App
         renderer={renderer}
         interruptRequestToken={interruptRequestToken}
+        onComposerInputFocusedChange={(focused) => {
+          composerInputFocused = focused;
+        }}
         onExitPromptOpenChange={(open) => {
           quitPromptOpen = open;
         }}
@@ -122,6 +126,9 @@ if (process.env.T3CODE_HEADLESS === "1") {
     [
       "SIGINT",
       () => {
+        if (composerInputFocused) {
+          return;
+        }
         if (quitPromptOpen) {
           shutdown(0);
           return;

@@ -119,6 +119,7 @@ import {
   type ResolvedComposerImageAttachment,
 } from "./composerSubmit";
 import { saveClipboardImageToFile } from "./clipboardImage";
+import { resolveClipboardImageSupport } from "./clipboardImage";
 import { KEYBINDING_GUIDE_SECTIONS, isCtrlC, shouldClearComposerOnCtrlC } from "./keyboardBehavior";
 import { createT1Logger } from "./log";
 import { resolveUserMessageBubbleWidth } from "./messageLayout";
@@ -2277,6 +2278,7 @@ function ComposerSendButton(props: {
 export function App({
   renderer: _renderer,
   interruptRequestToken = 0,
+  onComposerInputFocusedChange,
   onExitPromptOpenChange,
   onRequestExit,
 }: {
@@ -2290,6 +2292,7 @@ export function App({
     }) => void;
   };
   interruptRequestToken?: number;
+  onComposerInputFocusedChange?: (focused: boolean) => void;
   onExitPromptOpenChange?: (open: boolean) => void;
   onRequestExit?: () => void;
 }) {
@@ -2865,6 +2868,13 @@ export function App({
   const activePendingIsResponding = activePendingUserInput
     ? respondingUserInputRequestIds.includes(activePendingUserInput.requestId)
     : false;
+
+  useEffect(() => {
+    onComposerInputFocusedChange?.(
+      focusArea === "composer" && !imagePasteInFlight && !activePendingApproval,
+    );
+  }, [activePendingApproval, focusArea, imagePasteInFlight, onComposerInputFocusedChange]);
+
   const timelineEntries = activeThread
     ? deriveTimelineEntries(
         activeThread.messages as unknown as Parameters<typeof deriveTimelineEntries>[0],
@@ -3876,6 +3886,56 @@ export function App({
     };
   }, [syncTimelineScrollState]);
 
+  async function attachClipboardImage(): Promise<void> {
+    if (activePendingUserInput) {
+      setStatus("Image attachments are disabled while questions are pending");
+      return;
+    }
+
+    if (imagePasteInFlight) {
+      setStatus("Image paste already in progress");
+      return;
+    }
+
+    setImagePasteInFlight(true);
+    try {
+      const clipboardSupport = await resolveClipboardImageSupport();
+      if (!clipboardSupport.supported) {
+        setStatus(clipboardSupport.reason);
+        return;
+      }
+
+      const filePath = await saveClipboardImageToFile(paths.imagesDir);
+      if (!filePath) {
+        setStatus("No image found on clipboard");
+        return;
+      }
+
+      const attachment = await resolveImageAttachmentFromPath({
+        filePath,
+        homeDir: paths.homeDir,
+      });
+      if (!attachment) {
+        throw new Error(`Clipboard image could not be resolved from ${filePath}.`);
+      }
+
+      addComposerAttachments([{ ...attachment, localPath: filePath }]);
+      setStatus("Image attached");
+      logger.log("composer.pasteImageAttachment", {
+        filePath,
+        name: attachment.name,
+        sizeBytes: attachment.sizeBytes,
+      });
+    } catch (error) {
+      logger.log("composer.pasteImageFailed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      setStatus("Clipboard image paste failed");
+    } finally {
+      setImagePasteInFlight(false);
+    }
+  }
+
   async function handleComposerPaste(event: PasteEvent) {
     logger.log("composer.paste");
     if (activePendingApproval) {
@@ -3914,48 +3974,7 @@ export function App({
     }
 
     event.preventDefault();
-
-    if (activePendingUserInput) {
-      setStatus("Image attachments are disabled while questions are pending");
-      return;
-    }
-
-    if (imagePasteInFlight) {
-      setStatus("Image paste already in progress");
-      return;
-    }
-
-    setImagePasteInFlight(true);
-    try {
-      const filePath = await saveClipboardImageToFile(paths.imagesDir);
-      if (!filePath) {
-        setStatus("No image found on clipboard");
-        return;
-      }
-
-      const attachment = await resolveImageAttachmentFromPath({
-        filePath,
-        homeDir: paths.homeDir,
-      });
-      if (!attachment) {
-        throw new Error(`Clipboard image could not be resolved from ${filePath}.`);
-      }
-
-      addComposerAttachments([{ ...attachment, localPath: filePath }]);
-      setStatus("Image attached");
-      logger.log("composer.pasteImageAttachment", {
-        filePath,
-        name: attachment.name,
-        sizeBytes: attachment.sizeBytes,
-      });
-    } catch (error) {
-      logger.log("composer.pasteImageFailed", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      setStatus("Clipboard image paste failed");
-    } finally {
-      setImagePasteInFlight(false);
-    }
+    await attachClipboardImage();
   }
 
   function syncProjectPathFromTextarea() {
@@ -8409,6 +8428,17 @@ export function App({
                             source: key.source,
                             sequence: key.sequence,
                           });
+                          if (
+                            !activePendingUserInput &&
+                            key.ctrl &&
+                            !key.meta &&
+                            !key.shift &&
+                            key.name === "y"
+                          ) {
+                            key.preventDefault();
+                            void attachClipboardImage();
+                            return;
+                          }
                           if (showPathSuggestions && pathSuggestionEntries.length > 0) {
                             if (key.name === "up" || (key.ctrl && key.name === "k")) {
                               key.preventDefault();
@@ -8590,6 +8620,18 @@ export function App({
                             compact={!responsiveLayout.showComposerModeLabels}
                             active={draftInteractionMode === "plan"}
                             onPress={toggleInteractionMode}
+                          />
+                          {responsiveLayout.showComposerDividers ? <FooterDivider /> : null}
+                          <ToolbarButton
+                            icon="󰋊"
+                            label={
+                              responsiveLayout.showComposerModeLabels ? "Clipboard" : undefined
+                            }
+                            compact={!responsiveLayout.showComposerModeLabels}
+                            disabled={imagePasteInFlight || !!activePendingApproval}
+                            onPress={() => {
+                              void attachClipboardImage();
+                            }}
                           />
                           {responsiveLayout.showComposerDividers ? <FooterDivider /> : null}
                           <ToolbarButton

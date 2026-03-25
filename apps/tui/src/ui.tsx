@@ -2278,8 +2278,6 @@ function ComposerSendButton(props: {
 export function App({
   renderer: _renderer,
   interruptRequestToken = 0,
-  onComposerInputFocusedChange,
-  onExitPromptOpenChange,
   onRequestExit,
 }: {
   renderer: {
@@ -2292,8 +2290,6 @@ export function App({
     }) => void;
   };
   interruptRequestToken?: number;
-  onComposerInputFocusedChange?: (focused: boolean) => void;
-  onExitPromptOpenChange?: (open: boolean) => void;
   onRequestExit?: () => void;
 }) {
   const terminalRenderer = _renderer as {
@@ -2320,6 +2316,7 @@ export function App({
   const [composerAttachmentDeleteArmed, setComposerAttachmentDeleteArmed] = useState(false);
   const [composerResetKey, setComposerResetKey] = useState(0);
   const composerRef = useRef<TextareaRenderable | null>(null);
+  const composerValueRef = useRef("");
   const deferredComposerSyncRef = useRef(createDeferredComposerSyncState());
   const timelineScrollRef = useRef<ScrollBoxRenderable | null>(null);
   const [imagePasteInFlight, setImagePasteInFlight] = useState(false);
@@ -2451,10 +2448,6 @@ export function App({
   useEffect(() => {
     composerDraftsByThreadIdRef.current = composerDraftsByThreadId;
   }, [composerDraftsByThreadId]);
-
-  useEffect(() => {
-    onExitPromptOpenChange?.(confirmDialog?.confirmLabel === "Quit");
-  }, [confirmDialog, onExitPromptOpenChange]);
 
   useEffect(() => {
     _renderer.setBackgroundColor?.(PALETTE.canvas);
@@ -2868,12 +2861,6 @@ export function App({
   const activePendingIsResponding = activePendingUserInput
     ? respondingUserInputRequestIds.includes(activePendingUserInput.requestId)
     : false;
-
-  useEffect(() => {
-    onComposerInputFocusedChange?.(
-      focusArea === "composer" && !imagePasteInFlight && !activePendingApproval,
-    );
-  }, [activePendingApproval, focusArea, imagePasteInFlight, onComposerInputFocusedChange]);
 
   const timelineEntries = activeThread
     ? deriveTimelineEntries(
@@ -3486,6 +3473,7 @@ export function App({
       state: deferredComposerSyncRef.current,
       onSync: () => {
         const nextValue = composerRef.current?.plainText ?? "";
+        composerValueRef.current = nextValue;
         setComposer(nextValue);
         if (activePendingProgress?.activeQuestion) {
           const questionId = activePendingProgress.activeQuestion.id;
@@ -3507,12 +3495,19 @@ export function App({
     });
   }
 
+  function syncComposerValueRefSoon() {
+    queueMicrotask(() => {
+      composerValueRef.current = composerRef.current?.plainText ?? composerValueRef.current;
+    });
+  }
+
   function readComposerValue(): string {
-    return composerRef.current?.plainText ?? composer;
+    return composerRef.current?.plainText ?? composerValueRef.current ?? composer;
   }
 
   function resetComposerTextarea(nextValue: string) {
     invalidateDeferredComposerSync(deferredComposerSyncRef.current);
+    composerValueRef.current = nextValue;
     setComposer(nextValue);
     setComposerResetKey((current) => current + 1);
   }
@@ -3530,11 +3525,57 @@ export function App({
     });
   }, [onRequestExit]);
 
+  const clearComposerDraft = useCallback(() => {
+    resetComposerTextarea("");
+    setComposerAttachmentDeleteArmed(false);
+    setPathSuggestionEntries([]);
+    setPathSuggestionIndex(0);
+    if (activePendingProgress?.activeQuestion && activePendingUserInput?.requestId) {
+      const questionId = activePendingProgress.activeQuestion.id;
+      const requestId = activePendingUserInput.requestId;
+      setPendingUserInputAnswersByRequestId((current) => ({
+        ...current,
+        [requestId]: {
+          ...current[requestId],
+          [questionId]: {
+            ...current[requestId]?.[questionId],
+            customAnswer: "",
+          },
+        },
+      }));
+    }
+    setStatus("Composer cleared");
+  }, [activePendingProgress, activePendingUserInput]);
+
+  const handleInterruptRequest = useCallback(() => {
+    if (confirmDialog?.confirmLabel === "Quit") {
+      const action = confirmDialog.onConfirm;
+      setConfirmDialog(null);
+      void action();
+      return;
+    }
+    const composerFocused =
+      focusArea === "composer" && !imagePasteInFlight && !activePendingApproval;
+    const composerValue = composerRef.current?.plainText ?? composerValueRef.current;
+    if (composerFocused && composerValue.length > 0) {
+      clearComposerDraft();
+      return;
+    }
+    requestAppExit();
+  }, [
+    activePendingApproval,
+    clearComposerDraft,
+    confirmDialog,
+    focusArea,
+    imagePasteInFlight,
+    requestAppExit,
+  ]);
+
   useEffect(() => {
     if (interruptRequestToken > 0) {
-      requestAppExit();
+      handleInterruptRequest();
     }
-  }, [interruptRequestToken, requestAppExit]);
+  }, [handleInterruptRequest, interruptRequestToken]);
 
   function applyComposerPathMention(entry: ProjectEntry) {
     const trigger = detectTrailingComposerPathTrigger(readComposerValue());
@@ -8363,6 +8404,7 @@ export function App({
                             key.preventDefault();
                             return;
                           }
+                          syncComposerValueRefSoon();
                           if (
                             shouldClearComposerOnCtrlC({
                               keyName: key.name,
@@ -8370,28 +8412,11 @@ export function App({
                             })
                           ) {
                             key.preventDefault();
-                            resetComposerTextarea("");
-                            setComposerAttachmentDeleteArmed(false);
-                            setPathSuggestionEntries([]);
-                            setPathSuggestionIndex(0);
-                            if (
-                              activePendingProgress?.activeQuestion &&
-                              activePendingUserInput?.requestId
-                            ) {
-                              const questionId = activePendingProgress.activeQuestion.id;
-                              const requestId = activePendingUserInput.requestId;
-                              setPendingUserInputAnswersByRequestId((current) => ({
-                                ...current,
-                                [requestId]: {
-                                  ...current[requestId],
-                                  [questionId]: {
-                                    ...current[requestId]?.[questionId],
-                                    customAnswer: "",
-                                  },
-                                },
-                              }));
+                            if (readComposerValue().length > 0) {
+                              clearComposerDraft();
+                            } else {
+                              requestAppExit();
                             }
-                            setStatus("Composer cleared");
                             return;
                           }
                           if (
@@ -8489,6 +8514,7 @@ export function App({
                           syncComposerFromTextarea();
                         }}
                         onPaste={(event) => {
+                          syncComposerValueRefSoon();
                           void handleComposerPaste(event);
                         }}
                         onSubmit={() => {

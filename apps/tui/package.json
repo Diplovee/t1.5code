@@ -3,6 +3,10 @@
   "version": "0.0.1",
   "description": "Terminal-first T3 Code fork with an OpenTUI client",
   "license": "MIT",
+  "homepage": "https://github.com/maria-rcks/t1code#readme",
+  "bugs": {
+    "url": "https://github.com/maria-rcks/t1code/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/maria-rcks/t1code",

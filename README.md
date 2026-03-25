@@ -22,24 +22,6 @@ _T3Code, but in your terminal._
 npx @maria_rcks/t1code
 ```
 
-## What you need
-
-- the required CLI tooling installed
-- provider auth already set up
-- macOS-first for now
-
-## Development
-
-```bash
-bun dev:tui
-```
-
-## Notes
-
-- This is still early.
-- This project is based on [T3 Code](https://github.com/pingdotgg/t3code).
-
 ## Credits
 
-- [@t3dotgg](https://github.com/t3dotgg) and the T3 Code contributors
-- [@juliusmarminge](https://github.com/juliusmarminge)
+- T3 Code credits: [@t3dotgg](https://github.com/t3dotgg) and [@juliusmarminge](https://github.com/juliusmarminge)

@@ -92,7 +92,7 @@ describe("resolveTuiResponsiveLayout", () => {
     );
   });
 
-  it("keeps footer labels visible while the sidebar is still open", () => {
+  it("keeps the traits label visible while the sidebar is still open", () => {
     expect(
       resolveTuiResponsiveLayout({
         viewportColumns: 110,
@@ -103,6 +103,23 @@ describe("resolveTuiResponsiveLayout", () => {
         showSidebar: true,
         showWindowDots: true,
         sidebarTitle: "T1 Code",
+        showComposerModeLabels: true,
+        showComposerModelLabel: true,
+        showComposerTraitsLabel: true,
+        showComposerDividers: true,
+      }),
+    );
+  });
+
+  it("collapses the traits label before the other footer labels in tighter widths", () => {
+    expect(
+      resolveTuiResponsiveLayout({
+        viewportColumns: 104,
+        sidebarCollapsedPreference: false,
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        showSidebar: true,
         showComposerModeLabels: true,
         showComposerModelLabel: true,
         showComposerTraitsLabel: false,

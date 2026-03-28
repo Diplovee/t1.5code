@@ -9327,7 +9327,6 @@ export function App({
 
                   <box
                     style={{
-                      backgroundColor: PALETTE.surface,
                       paddingLeft: 1,
                       paddingRight: 1,
                       flexDirection: "row",

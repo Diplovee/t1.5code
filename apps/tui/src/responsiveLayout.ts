@@ -4,7 +4,9 @@ const SIDEBAR_TOGGLE_MAX_MAIN_COLUMNS = 56;
 const SIDEBAR_FORCE_COLLAPSE_MAX_MAIN_COLUMNS = 44;
 const COMPOSER_MODE_LABEL_MIN_MAIN_COLUMNS = 44;
 const COMPOSER_MODEL_LABEL_MIN_MAIN_COLUMNS = 62;
-const COMPOSER_TRAITS_LABEL_MIN_MAIN_COLUMNS = 82;
+// The traits control already truncates its label, so it can stay expanded
+// at widths where the rest of the composer footer still fits comfortably.
+const COMPOSER_TRAITS_LABEL_MIN_MAIN_COLUMNS = 72;
 
 export type TuiResponsiveLayout = Readonly<{
   showSidebarToggle: boolean;

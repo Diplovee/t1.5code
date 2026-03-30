@@ -19,8 +19,8 @@ function resolveTuiPaths(env: NodeJS.ProcessEnv = process.env): {
   configHomeDir: string;
 } {
   return {
-    homeDir: env.T3CODE_HOME?.trim() || path.join(os.homedir(), ".t1"),
-    configHomeDir: env.T3CODE_CONFIG_HOME?.trim() || path.join(os.homedir(), ".config", "t1code"),
+    homeDir: env.T1CODE_HOME?.trim() || path.join(os.homedir(), ".t1"),
+    configHomeDir: env.T1CODE_CONFIG_HOME?.trim() || path.join(os.homedir(), ".config", "t1code"),
   };
 }
 
@@ -76,10 +76,16 @@ function formatStartupFailureMessage(options: {
       : "";
 
   if (timedOut) {
-    return `Timed out waiting for T3 server on ${host}:${port}.${recentErrorSummary}${installHint} See ${logPath} for full logs.`;
+    return `Timed out waiting for the T1 server on ${host}:${port}.${recentErrorSummary}${installHint} See ${logPath} for full logs.`;
   }
 
-  return `T3 server exited before becoming ready (${exitCode}).${recentErrorSummary}${installHint} See ${logPath} for full logs.`;
+  return `T1 server exited before becoming ready (${exitCode}).${recentErrorSummary}${installHint} See ${logPath} for full logs.`;
+}
+
+function stripReservedLaunchEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(env).filter(([key]) => !key.startsWith("T1CODE_") && !key.startsWith("T3CODE_")),
+  );
 }
 
 async function reserveLoopbackPort(): Promise<number> {
@@ -162,25 +168,14 @@ async function waitForPort(
 ensureDependenciesInstalled(REPO_ROOT);
 
 const paths = resolveTuiPaths();
-const host = process.env.T3CODE_HOST?.trim() || "127.0.0.1";
-const port = process.env.T3CODE_PORT
-  ? Number(process.env.T3CODE_PORT)
+const host = process.env.T1CODE_HOST?.trim() || "127.0.0.1";
+const port = process.env.T1CODE_PORT
+  ? Number(process.env.T1CODE_PORT)
   : await reserveLoopbackPort();
 if (!Number.isInteger(port) || port <= 0 || port > 65_535) {
-  throw new Error("T3CODE_PORT must be a valid port when provided.");
+  throw new Error("T1CODE_PORT must be a valid port when provided.");
 }
-const authToken = process.env.T3CODE_AUTH_TOKEN?.trim() || randomBytes(16).toString("hex");
-
-const serverEnv: NodeJS.ProcessEnv = {
-  ...process.env,
-  T3CODE_MODE: "tui",
-  T3CODE_HOME: paths.homeDir,
-  T3CODE_HOST: host,
-  T3CODE_PORT: String(port),
-  T3CODE_AUTH_TOKEN: authToken,
-  T3CODE_NO_BROWSER: "1",
-  T3CODE_AUTO_BOOTSTRAP_PROJECT_FROM_CWD: "true",
-};
+const authToken = process.env.T1CODE_AUTH_TOKEN?.trim() || randomBytes(16).toString("hex");
 
 await fs.promises.mkdir(paths.configHomeDir, { recursive: true });
 const logPath = path.join(paths.configHomeDir, "tui.log");
@@ -209,7 +204,7 @@ const server = spawn(
   ],
   {
     cwd: REPO_ROOT,
-    env: serverEnv,
+    env: stripReservedLaunchEnv(process.env),
     stdio: ["ignore", "pipe", "pipe"],
   },
 );
@@ -229,14 +224,13 @@ await waitForPort(host, port, server, 10_000, { logPath, recentErrors: startupEr
 const tui = spawn("bun", ["--silent", "--watch", "run", TUI_ENTRY], {
   cwd: REPO_ROOT,
   env: {
-    ...process.env,
-    T3CODE_MODE: "tui",
-    T3CODE_HOME: paths.homeDir,
-    T3CODE_HOST: host,
-    T3CODE_PORT: String(port),
-    T3CODE_AUTH_TOKEN: authToken,
-    T3CODE_NO_BROWSER: "1",
-    T3CODE_TUI_ATTACH_ONLY: "1",
+    ...stripReservedLaunchEnv(process.env),
+    T1CODE_HOME: paths.homeDir,
+    T1CODE_CONFIG_HOME: paths.configHomeDir,
+    T1CODE_HOST: host,
+    T1CODE_PORT: String(port),
+    T1CODE_AUTH_TOKEN: authToken,
+    T1CODE_TUI_ATTACH_ONLY: "1",
   },
   stdio: "inherit",
 });

@@ -21,32 +21,32 @@ function terminalIdentity(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 function shouldUseKittyKeyboard(env: NodeJS.ProcessEnv = process.env): boolean {
-  const forced = readBooleanEnv(env.T3CODE_USE_KITTY_KEYBOARD);
+  const forced = readBooleanEnv(env.T1CODE_USE_KITTY_KEYBOARD);
   if (forced !== undefined) return forced;
   const identity = terminalIdentity(env);
   return ["ghostty", "kitty", "wezterm", "iterm"].some((token) => identity.includes(token));
 }
 
 function shouldUseAlternateScreen(env: NodeJS.ProcessEnv = process.env): boolean {
-  return readBooleanEnv(env.T3CODE_USE_ALTERNATE_SCREEN) ?? true;
+  return readBooleanEnv(env.T1CODE_USE_ALTERNATE_SCREEN) ?? true;
 }
 
 function shouldUseMouse(env: NodeJS.ProcessEnv = process.env): boolean {
-  return readBooleanEnv(env.T3CODE_USE_MOUSE) ?? true;
+  return readBooleanEnv(env.T1CODE_USE_MOUSE) ?? true;
 }
 
 function shouldEnableMouseMovement(env: NodeJS.ProcessEnv = process.env): boolean {
-  return readBooleanEnv(env.T3CODE_ENABLE_MOUSE_MOVEMENT) ?? false;
+  return readBooleanEnv(env.T1CODE_ENABLE_MOUSE_MOVEMENT) ?? false;
 }
 
-if (process.env.T3CODE_HEADLESS === "1") {
+if (process.env.T1CODE_HEADLESS === "1") {
   const paths = resolveTuiPaths();
   const outputPath =
-    process.env.T3CODE_HEADLESS_FRAME_PATH?.trim() ||
+    process.env.T1CODE_HEADLESS_FRAME_PATH?.trim() ||
     path.join(paths.configHomeDir, "headless-frame.txt");
-  const timeoutMs = Number(process.env.T3CODE_HEADLESS_TIMEOUT_MS ?? 1_500);
-  const width = Number(process.env.T3CODE_HEADLESS_WIDTH ?? 160);
-  const height = Number(process.env.T3CODE_HEADLESS_HEIGHT ?? 48);
+  const timeoutMs = Number(process.env.T1CODE_HEADLESS_TIMEOUT_MS ?? 1_500);
+  const width = Number(process.env.T1CODE_HEADLESS_WIDTH ?? 160);
+  const height = Number(process.env.T1CODE_HEADLESS_HEIGHT ?? 48);
   const testSetup = await createTestRenderer({
     width,
     height,

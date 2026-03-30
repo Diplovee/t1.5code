@@ -26,7 +26,7 @@
   },
   "scripts": {
     "dev": "bun run src/index.tsx",
-    "dev:headless": "T3CODE_HEADLESS=1 bun run src/index.tsx",
+    "dev:headless": "T1CODE_HEADLESS=1 bun run src/index.tsx",
     "build": "bun run scripts/build-runtime.mjs && node scripts/bundle-server-dist.mjs",
     "prepack": "bun run build && node scripts/prepare-package-json.mjs",
     "postpack": "node scripts/restore-package-json.mjs",

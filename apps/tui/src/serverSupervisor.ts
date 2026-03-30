@@ -71,7 +71,7 @@ const SERVER_APP_DIR = path.resolve(REPO_ROOT, "apps/server");
 const BUNDLED_SERVER_ENTRY = path.resolve(THIS_DIR, "server", "index.js");
 
 function resolveBundledServerCommand(env: NodeJS.ProcessEnv): string {
-  const configured = env.T3CODE_NODE_BIN?.trim();
+  const configured = env.T1CODE_NODE_BIN?.trim();
   if (configured) {
     return configured;
   }
@@ -102,7 +102,7 @@ function parseConfiguredPort(value: string | undefined): number | null {
 
   const port = Number(normalized);
   if (!Number.isInteger(port) || port <= 0 || port > 65_535) {
-    throw new Error("T3CODE_PORT must be a valid port between 1 and 65535.");
+    throw new Error("T1CODE_PORT must be a valid port between 1 and 65535.");
   }
 
   return port;
@@ -115,19 +115,19 @@ export function buildServerWsUrl(host: string, port: number, authToken: string):
 export function resolveAttachedServerConnection(
   env: NodeJS.ProcessEnv = process.env,
 ): AttachedServerConnection | null {
-  if (!readBooleanEnv(env.T3CODE_TUI_ATTACH_ONLY)) {
+  if (!readBooleanEnv(env.T1CODE_TUI_ATTACH_ONLY)) {
     return null;
   }
 
-  const host = normalizeHost(env.T3CODE_HOST);
-  const port = parseConfiguredPort(env.T3CODE_PORT);
+  const host = normalizeHost(env.T1CODE_HOST);
+  const port = parseConfiguredPort(env.T1CODE_PORT);
   if (port === null) {
-    throw new Error("T3CODE_TUI_ATTACH_ONLY requires a valid T3CODE_PORT.");
+    throw new Error("T1CODE_TUI_ATTACH_ONLY requires a valid T1CODE_PORT.");
   }
 
-  const authToken = env.T3CODE_AUTH_TOKEN?.trim();
+  const authToken = env.T1CODE_AUTH_TOKEN?.trim();
   if (!authToken) {
-    throw new Error("T3CODE_TUI_ATTACH_ONLY requires T3CODE_AUTH_TOKEN.");
+    throw new Error("T1CODE_TUI_ATTACH_ONLY requires T1CODE_AUTH_TOKEN.");
   }
 
   return {
@@ -138,8 +138,10 @@ export function resolveAttachedServerConnection(
   };
 }
 
-function stripLegacyT3Env(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  return Object.fromEntries(Object.entries(env).filter(([key]) => !key.startsWith("T3CODE_")));
+function stripReservedLaunchEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(env).filter(([key]) => !key.startsWith("T1CODE_") && !key.startsWith("T3CODE_")),
+  );
 }
 
 async function reserveLoopbackPort(): Promise<number> {
@@ -192,7 +194,7 @@ async function waitForServerPort(input: {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  throw new Error(`Timed out waiting for T3 server on ${input.host}:${input.port}.`);
+  throw new Error(`Timed out waiting for T1 server on ${input.host}:${input.port}.`);
 }
 
 function resolveServerEntry(env: NodeJS.ProcessEnv = process.env): {
@@ -219,10 +221,9 @@ export async function startServerSupervisor(
   const setTimeoutImpl = dependencies.setTimeoutImpl ?? setTimeout;
   const clearTimeoutImpl = dependencies.clearTimeoutImpl ?? clearTimeout;
   const waitUntilReady = dependencies.waitUntilReady ?? waitForServerPort;
-  const configuredPort = parseConfiguredPort(env.T3CODE_PORT);
-  const port = options.port ?? configuredPort ?? (await reservePort());
-  const host = options.host?.trim() || normalizeHost(env.T3CODE_HOST);
-  const authToken = options.authToken ?? env.T3CODE_AUTH_TOKEN ?? randomBytes(16).toString("hex");
+  const port = options.port ?? (await reservePort());
+  const host = normalizeHost(options.host);
+  const authToken = options.authToken ?? randomBytes(16).toString("hex");
   const { command, args } = resolveServerEntry(env);
   const events = new EventEmitter<{
     restart: [attempt: number];
@@ -255,16 +256,7 @@ export async function startServerSupervisor(
       ],
       {
         cwd: process.cwd(),
-        env: {
-          ...stripLegacyT3Env(env),
-          T3CODE_MODE: "tui",
-          T3CODE_HOME: options.homeDir,
-          T3CODE_HOST: host,
-          T3CODE_PORT: String(port),
-          T3CODE_AUTH_TOKEN: authToken,
-          T3CODE_NO_BROWSER: "1",
-          T3CODE_AUTO_BOOTSTRAP_PROJECT_FROM_CWD: "true",
-        },
+        env: stripReservedLaunchEnv(env),
         stdio: ["ignore", "pipe", "pipe"] as const,
       },
     );

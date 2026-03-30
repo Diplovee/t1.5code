@@ -10,9 +10,9 @@ export interface TuiPaths {
 }
 
 export function resolveTuiPaths(env: NodeJS.ProcessEnv = process.env): TuiPaths {
-  const homeDir = env.T3CODE_HOME?.trim() || path.join(os.homedir(), ".t1");
+  const homeDir = env.T1CODE_HOME?.trim() || path.join(os.homedir(), ".t1");
   const configHomeDir =
-    env.T3CODE_CONFIG_HOME?.trim() || path.join(os.homedir(), ".config", "t1code");
+    env.T1CODE_CONFIG_HOME?.trim() || path.join(os.homedir(), ".config", "t1code");
   return {
     homeDir,
     configHomeDir,

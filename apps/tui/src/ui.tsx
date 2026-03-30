@@ -3318,7 +3318,7 @@ export function App({
     latestTurnSettled &&
     hasActionableProposedPlan(latestProposedPlan);
   const totalColumns =
-    process.stdout.columns ?? (Number(process.env.T3CODE_HEADLESS_WIDTH ?? 0) || 160);
+    process.stdout.columns ?? (Number(process.env.T1CODE_HEADLESS_WIDTH ?? 0) || 160);
   const responsiveLayout = resolveTuiResponsiveLayout({
     viewportColumns: totalColumns,
     sidebarCollapsedPreference,
@@ -7424,9 +7424,9 @@ export function App({
         : buildProjectContextMenuItems()
     : [];
   const viewportRows =
-    (process.stdout.rows ?? Number(process.env.T3CODE_HEADLESS_HEIGHT ?? 0)) || 48;
+    (process.stdout.rows ?? Number(process.env.T1CODE_HEADLESS_HEIGHT ?? 0)) || 48;
   const viewportColumns =
-    (process.stdout.columns ?? Number(process.env.T3CODE_HEADLESS_WIDTH ?? 0)) || 160;
+    (process.stdout.columns ?? Number(process.env.T1CODE_HEADLESS_WIDTH ?? 0)) || 160;
   const mainPanelLeft = responsiveLayout.showSidebar ? responsiveLayout.sidebarWidth + 1 : 0;
   const imagePreviewModalWidth = Math.max(48, Math.min(110, viewportColumns - 8));
   const imagePreviewModalHeight = Math.max(18, Math.min(36, viewportRows - 6));

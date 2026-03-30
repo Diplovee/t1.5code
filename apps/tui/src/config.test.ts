@@ -6,8 +6,8 @@ import { resolveTuiPaths } from "./config";
 describe("resolveTuiPaths", () => {
   it("prefers TUI-specific paths", () => {
     const paths = resolveTuiPaths({
-      T3CODE_HOME: "/tmp/t1-home",
-      T3CODE_CONFIG_HOME: "/tmp/t1-config",
+      T1CODE_HOME: "/tmp/t1-home",
+      T1CODE_CONFIG_HOME: "/tmp/t1-config",
     });
 
     expect(paths).toEqual({
